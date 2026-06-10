@@ -972,6 +972,11 @@ void EditWrapper::handleFileLoadFinished(const QByteArray &encode, const QByteAr
 {
     qDebug() << "File load finished. Encoding:" << encode << "Error:" << error << "Preprocessed:" << m_bHasPreProcess;
 
+    if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+        qDebug() << "EditWrapper handleFileLoadFinished, quit or child widget missing, return";
+        return;
+    }
+
     // 判断是否预加载，若已预加载，则无需重新初始化
     if (!m_bHasPreProcess) {
         qDebug() << "Performing initial file load initialization";
@@ -999,6 +1004,11 @@ void EditWrapper::handleFileLoadFinished(const QByteArray &encode, const QByteAr
         QPointer<QObject> checkPtr(this);
         // 加载数据
         loadContent(content);
+        if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+            qDebug() << "EditWrapper handleFileLoadFinished, quit or child widget missing after loadContent, return";
+            m_bFileLoading = false;
+            return;
+        }
         if (checkPtr.isNull()) {
             qDebug() << "EditWrapper handleFileLoadFinished, checkPtr is null, return";
             return;
@@ -1496,6 +1506,10 @@ void EditWrapper::customEvent(QEvent *e)
 void EditWrapper::loadContent(const QByteArray &strContent)
 {
     qDebug() << "EditWrapper loadContent, strContent:" << strContent;
+    if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+        qDebug() << "EditWrapper loadContent, quit or child widget missing, return";
+        return;
+    }
     if (m_pBottomBar != nullptr) {
         qDebug() << "EditWrapper loadContent, m_pBottomBar is not nullptr";
         m_pBottomBar->setChildEnabled(false);
@@ -1509,7 +1523,6 @@ void EditWrapper::loadContent(const QByteArray &strContent)
     m_pTextEdit->clear();
     m_pTextEdit->setReadOnly(true);
     m_pTextEdit->setLeftAreaUpdateState(TextEdit::FileOpenBegin);
-    m_bQuit = false;
     //QTextDocument *doc = m_pTextEdit->document();
     QTextCursor cursor = m_pTextEdit->textCursor();
 
@@ -1558,6 +1571,10 @@ void EditWrapper::loadContent(const QByteArray &strContent)
             QApplication::restoreOverrideCursor();
             return;
         }
+        if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+            QApplication::restoreOverrideCursor();
+            return;
+        }
     } else if (len > 0) {
         //初始化秒开
         if (!m_bQuit && len > InitContentPos) {
@@ -1572,9 +1589,15 @@ void EditWrapper::loadContent(const QByteArray &strContent)
             //秒开界面语法高亮
             OnUpdateHighlighter();
             QApplication::processEvents();
+            if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+                QApplication::restoreOverrideCursor();
+                return;
+            }
             inserted += InitContentPos;
             double progress = (inserted * 1.0) / len * 100;
-            m_pBottomBar->setProgress(static_cast<int>(progress));
+            if (m_pBottomBar != nullptr) {
+                m_pBottomBar->setProgress(static_cast<int>(progress));
+            }
             if (!m_bQuit) {
                 qDebug() << "EditWrapper loadContent, !m_bQuit";
                 //data = strContent.mid(InitContentPos, len - InitContentPos);
@@ -1583,7 +1606,9 @@ void EditWrapper::loadContent(const QByteArray &strContent)
                 cursor.insertText(data);
                 inserted += (len - InitContentPos);
                 progress = (inserted * 1.0) / len * 100;
-                m_pBottomBar->setProgress(static_cast<int>(progress));
+                if (m_pBottomBar != nullptr) {
+                    m_pBottomBar->setProgress(static_cast<int>(progress));
+                }
             }
         } else {
             qDebug() << "EditWrapper loadContent, m_bQuit";
@@ -1599,9 +1624,15 @@ void EditWrapper::loadContent(const QByteArray &strContent)
                 OnUpdateHighlighter();
                 inserted += len;
                 double progress = (inserted * 1.0) / len * 100;
-                m_pBottomBar->setProgress(static_cast<int>(progress));
+                if (m_pBottomBar != nullptr) {
+                    m_pBottomBar->setProgress(static_cast<int>(progress));
+                }
             }
         }
+    }
+    if (m_bQuit || m_pTextEdit == nullptr || m_pBottomBar == nullptr) {
+        QApplication::restoreOverrideCursor();
+        return;
     }
     if (m_pWindow != nullptr) {
         qDebug() << "EditWrapper loadContent, m_pWindow is not nullptr";
